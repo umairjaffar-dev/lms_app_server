@@ -16,13 +16,13 @@ router.get("/", async (req, res) => {
       res.cookie("sid", session.id, {
         httpOnly: true,
         signed: true,
-        maxAge: 1000 * 60 * 60,
+        maxAge: 1000 * 60 * 60 * 24,
       });
     }
 
     res.json(courses);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
