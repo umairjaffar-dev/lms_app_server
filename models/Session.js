@@ -6,10 +6,18 @@ const sessionSchema = new mongoose.Schema({
     default: null,
   },
   data: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {
-      cart: [],
-    },
+    cart: [
+      {
+        courseId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+        },
+        quantity: {
+          type: Number,
+          default: 1,
+        },
+      },
+    ],
   },
   expires: {
     type: Number,

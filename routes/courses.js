@@ -9,7 +9,10 @@ router.get("/", async (req, res) => {
   try {
     const courses = await Course.find();
 
-    if (!req.signedCookies.sid) {
+    // Search for previos session in database.
+    const prevSession = await Session.findById(req.signedCookies.sid);
+
+    if (!prevSession) {
       // Create session for courses:
       const session = await Session.create({});
 

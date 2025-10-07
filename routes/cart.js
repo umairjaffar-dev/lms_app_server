@@ -1,33 +1,51 @@
 import express from "express";
 import Session from "../models/Session.js";
 import Course from "../models/Course.js";
+import Cart from "../models/Cart.js";
 
 const router = express.Router();
 
 // GET cart
 router.get("/", async (req, res) => {
-  //Add your code here
-  const { sid: sessionId } = req.signedCookies; // getting the current login session.
+  const sessionId = req.signedCookies.sid; // getting the current login session.
 
-  if (!sessionId) {
+  const session = await Session.findById(sessionId).populate(
+    "data.cart.courseId"
+  ); // find the session by id.
+
+  // console.log({ session: session.data.cart });
+
+  if (!session) {
     return res.status(403).json({ error: "Session Expired." });
   }
 
-  const session = await Session.findById({ _id: sessionId }); // find the session by id.
-  // console.log({ session });
+  if (!session.userId) {
+    const cartCoursesDetails = session.data.cart.map(
+      ({ courseId, quantity }) => {
+        const { id, name, image, price } = courseId;
 
-  const courseIds = session.data.cart.map(({ courseId }) => courseId);
-  const courses = await Course.find({ _id: { $in: courseIds } });
-
-  const cartCoursesDetails = courses.map((course) => {
-    const { id, name, image, price } = course;
-
-    const { quantity } = session.data.cart.find(
-      ({ courseId }) => courseId === id
+        return {
+          id,
+          name,
+          image,
+          price,
+          quantity,
+        };
+      }
     );
 
+    return res.status(200).json(cartCoursesDetails);
+  }
+
+  const data = await Cart.findOne({ userId: session.userId }).populate(
+    "courses.courseId"
+  );
+
+  const cartCoursesDetails = data.courses.map(({ courseId, quantity }) => {
+    const { id, name, image, price } = courseId;
+
     return {
-      id: id,
+      id,
       name,
       image,
       price,
@@ -65,7 +83,39 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const { courseId } = req.body;
   const { sid: sessionId } = req.signedCookies;
-  // get the session of the current request.
+
+  const session = await Session.findById(sessionId);
+
+  if (session.userId) {
+    // get the session of the current LoggedIn user request.
+    const result = await Cart.updateOne(
+      {
+        userId: session.userId, // find this session through sessionId
+        "courses.courseId": courseId, // find this sepecific courseId to increase its quantity.
+      },
+      {
+        $inc: { "courses.$.quantity": 1 },
+      }
+    );
+
+    // console.log(result);
+
+    if (result.matchedCount === 0) {
+      await Session.updateOne(
+        { userId: session.userId },
+        {
+          $push: {
+            // TODO: must learn, how we can play with array using MongoDB operations.
+            courses: { courseId, quantity: 1 },
+          },
+        }
+      );
+    }
+
+    return res.status(201).json({ message: "Course added to the cart." });
+  }
+
+  // get the session of the current GUST user request.
   const result = await Session.updateOne(
     {
       _id: sessionId, // find this session through sessionId

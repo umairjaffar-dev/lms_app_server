@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import Session from "../models/Session.js";
+import Cart from "../models/Cart.js";
 
 const router = express.Router();
 
@@ -62,6 +63,16 @@ router.post("/login", async (req, res) => {
       session.expires = Math.round(Date.now() / 1000) + 60 * 60 * 24 * 30;
       session.userId = user._id;
 
+      // TODO: if user has already have cart then add the cart in previous cart otherwise create new cart.
+      // check user cart. if cart exist then add into prev cart else create new one.
+      const result = await Cart.create({
+        userId: user._id,
+        courses: session.data.cart,
+      });
+      session.data = {};
+
+      console.log({ result });
+
       await session.save();
 
       res.cookie("sid", session.id, {
@@ -79,7 +90,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const newSession = await Session.create({});
+    const newSession = await Session.create({ userId: user.id });
 
     res.cookie("sid", newSession.id, {
       httpOnly: true,
